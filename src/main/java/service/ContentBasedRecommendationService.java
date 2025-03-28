@@ -17,7 +17,7 @@ public class ContentBasedRecommendationService {
         this.restaurantMongoTemplate = restaurantMongoTemplate;
     }
 
-    public List<String> recommend(Map<String, Object> userPrefs) {
+    public Map<String, Object> recommend(Map<String, Object> userPrefs) {
         List<Restaurant> restaurants = restaurantMongoTemplate.findAll(Restaurant.class);
 
         Map<String, Double> userVector = flattenPreferences(userPrefs);
@@ -29,11 +29,20 @@ public class ContentBasedRecommendationService {
             scores.put(r.getName(), similarity);
         }
 
-        return scores.entrySet().stream()
+        List<Map<String, Object>> recommendations = scores.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .limit(3)
-                .map(Map.Entry::getKey)
+                .map(entry -> {
+                    Map<String, Object> rec = new HashMap<>();
+                    rec.put("name", entry.getKey());
+                    rec.put("score", (int) Math.round(entry.getValue() * 100)); // scale to 0–100
+                    return rec;
+                })
                 .collect(Collectors.toList());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("recommendations", recommendations);
+        return response;
     }
 
     private Map<String, Double> flattenPreferences(Map<String, Object> prefs) {

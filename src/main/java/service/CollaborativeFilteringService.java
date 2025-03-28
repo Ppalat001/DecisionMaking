@@ -23,7 +23,7 @@ public class CollaborativeFilteringService {
         this.restaurantMongoTemplate = restaurantMongoTemplate;
     }
 
-    public List<String> recommendBasedOnSimilarUsers(Map<String, Object> userPrefs) {
+    public Map<String, Object> recommendBasedOnSimilarUsers(Map<String, Object> userPrefs) {
         List<DecisionPreference> history = decisionMongoTemplate.findAll(DecisionPreference.class);
         List<Restaurant> restaurants = restaurantMongoTemplate.findAll(Restaurant.class);
 
@@ -71,11 +71,21 @@ public class CollaborativeFilteringService {
             }
         }
 
-        return restaurantScores.entrySet().stream()
+        List<Map<String, Object>> recommendations = restaurantScores.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .limit(3)
-                .map(Map.Entry::getKey)
+                .map(entry -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("name", entry.getKey());
+                    map.put("score", (int) Math.round(entry.getValue()));
+                    return map;
+                })
                 .collect(Collectors.toList());
+
+        // Wrap in final response
+        Map<String, Object> response = new HashMap<>();
+        response.put("recommendations", recommendations);
+        return response;
     }
 
     private Map<String, Double> flattenPreferences(Map<String, Object> prefs) {

@@ -13,17 +13,17 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class RecommendationService {
+public class BayesianService {
 
     @Autowired
     @Qualifier("decisionMongoTemplate")
-    private  MongoTemplate decisionMongoTemplate;
+    private MongoTemplate decisionMongoTemplate;
 
     @Autowired
     @Qualifier("restaurantMongoTemplate")
-    private  MongoTemplate restaurantMongoTemplate;
+    private MongoTemplate restaurantMongoTemplate;
 
-    public List<Map<String, Object>> calculateBayesianRecommendations(Map<String, Object> userPrefs) {
+    public Map<String, Object> calculateBayesianRecommendations(Map<String, Object> userPrefs) {
         List<DecisionPreference> history = decisionMongoTemplate.findAll(DecisionPreference.class);
         List<Restaurant> restaurants = restaurantMongoTemplate.findAll(Restaurant.class);
 
@@ -58,17 +58,21 @@ public class RecommendationService {
             scores.put(r.getName(), score);
         }
 
-        return scores.entrySet().stream()
+        List<Map<String, Object>> recommendations = scores.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .limit(3)
                 .map(entry -> {
                     Map<String, Object> map = new HashMap<>();
-                    double roundedScore = Math.round(entry.getValue() * 10000.0) / 10000.0;
                     map.put("name", entry.getKey());
-                    map.put("score", roundedScore);
+                    double roundedScore = Math.round(entry.getValue() * 10000.0) / 10000.0;
+                    map.put("score", roundedScore); // raw Bayesian probability
                     return map;
                 })
                 .collect(Collectors.toList());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("recommendations", recommendations);
+        return response;
     }
 
     private double weightedProb(String category, String key, Map<String, String> userPrefs, List<DecisionPreference> history) {
@@ -79,7 +83,8 @@ public class RecommendationService {
             if (map != null && map.containsKey(key)) {
                 try {
                     count += Integer.parseInt(map.get(key));
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
                 total++;
             }
         }
@@ -93,7 +98,8 @@ public class RecommendationService {
         double weight = 1.0;
         try {
             weight = Double.parseDouble(weightStr);
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException ignored) {
+        }
 
         // ✅ If user gave 0 weight (doesn't care), skip this field entirely
         if (weight == 0.0) {
