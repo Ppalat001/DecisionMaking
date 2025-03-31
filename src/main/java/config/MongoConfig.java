@@ -22,4 +22,9 @@ public class MongoConfig {
     public MongoTemplate restaurantMongoTemplate() {
         return new MongoTemplate(MongoClients.create(URI), "Restaurants"); // ✅ This points to correct DB
     }
+
+    @Bean(name = "decisionMongoTemplateRegular")
+    public MongoTemplate decisionMongoTemplateRegular() {
+        return new MongoTemplate(MongoClients.create(URI), "Decisions"); // ✅ This points to correct DB
+    }
 }
